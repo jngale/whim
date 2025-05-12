@@ -10,7 +10,8 @@ if (!$projectName) {
 
 try {
     $project = Project::getByName($projectName);
-    $project->getProjectType->fixPermissions();
+    error_log("[JG fix_permissions.php]");
+    // $project->fixPermissions();
     echo "✅ Permissions fixed for $projectName";
 } catch (Throwable $e) {
     http_response_code(500);

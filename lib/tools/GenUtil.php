@@ -127,9 +127,6 @@ function safeCreateDirectory(string $path): void {
     }
 }
 
-
-
-
 function flattenMetadata(array $template): array {
     $flat = [];
     foreach ($template as $key => $field) {
@@ -140,4 +137,40 @@ function flattenMetadata(array $template): array {
         }
     }
     return $flat;
+}
+
+// Apache Utilities
+function ensureHttpsVHost(Project $project): void {
+    $name = $project->getProjectName();
+    $path = $project->getPath();
+    $vhostFile = "/etc/apache2/sites-available/{$name}.dev.local-ssl.conf";
+    $certFile = "/etc/ssl/certs/whim-local.pem";
+    $keyFile = "/etc/ssl/private/whim-local.key";
+
+    if (file_exists($vhostFile)) {
+        error_log("[GenUtil] ✅ SSL vhost already exists: $vhostFile");
+        return;
+    }
+
+    $vhostConfig = <<<CONF
+<VirtualHost *:443>
+    ServerName {$name}.dev.local
+    DocumentRoot $path
+
+    <Directory $path>
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    SSLEngine on
+    SSLCertificateFile $certFile
+    SSLCertificateKeyFile $keyFile
+</VirtualHost>
+CONF;
+
+    file_put_contents('/tmp/{$name}.vhost.conf', $vhostConfig);
+    exec("sudo cp /tmp/{$name}.vhost.conf $vhostFile");
+    exec("sudo a2ensite {$name}.dev.local-ssl.conf");
+    exec("sudo systemctl reload apache2");
+    error_log("[GenUtil] ✅ Created and enabled SSL vhost for {$name}.dev.local");
 }

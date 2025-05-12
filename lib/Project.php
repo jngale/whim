@@ -102,28 +102,30 @@ class Project {
         $type = ProjectType::load($this);
     
         match ($action) {
-            'deployProject'   => $type->deployProject($this),
-            'backupProject'   => $type->backupProject($this),
-            'restoreProject'  => $type->restoreProject($this),
-            'stageProject'       => $type->stageProject($this),
-            'importProject'      => $type->importProject($this),
-            'fixPermissions'  => $type->fixPermissions($this),
-            default           => throw new \RuntimeException("Unknown action '$action'")
+            'deployProject'     => $type->deployProject($this),
+            'backupProject'     => $type->backupProject($this),
+            'restoreProject'    => $type->restoreProject($this),
+            'stageProject'      => $type->stageProject($this),
+            'importProject'     => $type->importProject($this),
+            'fixPermissions'    => $type->fixPermissions($this),
+            default             => throw new \RuntimeException("Unknown action '$action'")
         };
     }
  
-
+    public function fixPermissions(): void {
+        $this->projectType->fixPermissions($this);
+    }
 
     public function deploy(): void {
-        $this->projectType->deploy();
+        $this->projectType->deployProject($this);
     }
 
     public function backup(): void {
-        $this->projectType->backup();
+        $this->projectType->backupProject($this);
     }
 
     public function restore(): void {
-        $this->projectType->restore();
+        $this->projectType->restoreProject($this);
     }
 
     public function getProjectCard(): string {

@@ -191,11 +191,27 @@ class WordPressSSHImporter extends Importer {
         error_log("[DEBUG] Local import command: $importCmd");
     
         shell_exec($importCmd);
-
         copy($dumpFile, $devPath);
-        gitSwitchOrCreateBranchIfMissing($project, $projectName, SQL_DIR);
-        gitCommit($project, "Imported $projectName from $provider", SQL_DIR);
+
+        // Git stuff
+        // gitSwitchOrCreateBranchIfMissing($project, $projectName, SQL_DIR);
+        // gitCommit($project, "Imported $projectName from $provider", SQL_DIR);
     
         error_log("[Import] ✅ Import complete for database '$localDb'");
+
+        // 🔧 Patch home and siteurl to local dev URL
+        $domain = $project->get('domain');
+        $localUrl = "https://{$domain}.dev.local";
+        $wpPath = $project->getPath();
+
+        $updateCmd = "wp option update home '$localUrl' --path='$wpPath' && " .
+                    "wp option update siteurl '$localUrl' --path='$wpPath'";
+
+        try {
+            shell_exec($updateCmd);
+            error_log("[Import] ✅ Updated WP URLs to $localUrl");
+        } catch (\Throwable $e) {
+            error_log("[Import] ⚠️ Failed to update WP URLs: " . $e->getMessage());
+        }
     }        
 }    

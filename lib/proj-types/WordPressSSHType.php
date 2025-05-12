@@ -13,7 +13,7 @@ class WordPressSSHType extends WordPressType {
 
     public function importProject(Project $project): void {
         $importer = WordPressSSHImporter::load($project);
-        $importer->importSite();
+        // $importer->importSite();
         $importer->importDatabase();
     }
 
