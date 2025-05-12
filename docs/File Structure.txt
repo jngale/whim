@@ -1,0 +1,33 @@
+/var/www/projects/whim/
+├── tabs/                   ← New folder for modular tab content
+│   ├── projects.php
+│   ├── metadata.php        ← Global template
+│   ├── users.php
+│   └── hosts.php
+├── lib/                    ← Object-oriented PHP classes
+│   ├── importers/
+|   │   ├── WordPressSSHImporter.php
+│   ├── proj-types/
+|   │   ├── LocalType.php
+|   |   |   ├── WHIMType
+|   │   ├── PluginType.php
+|   │   ├── WordPress.php
+|   │   ├── WordPressSSH.php
+|   │   ├── WPBluehost.php
+│   ├── User.php
+│   ├── Importer.php
+│   ├── Project.php
+│   ├── ProjectType.php
+│   └── helpers.php
+├── css/
+│   └── whim.css            ← Optional external styling
+├── js/
+│   └── whim.js             ← Optional JS loader logic
+├── index.php               ← Main UI
+├── bootstrap.php           
+├── metadata.json           ← Project metadata
+├── composer.json           ← Composer info
+└── users.json              ← User data
+
+
+
