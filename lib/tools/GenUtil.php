@@ -140,37 +140,27 @@ function flattenMetadata(array $template): array {
 }
 
 // Apache Utilities
-function ensureHttpsVHost(Project $project): void {
+function ensureHttpVHost(Project $project): void {
     $name = $project->getProjectName();
     $path = $project->getPath();
-    $vhostFile = "/etc/apache2/sites-available/{$name}.dev.local-ssl.conf";
-    $certFile = "/etc/ssl/certs/whim-local.pem";
-    $keyFile = "/etc/ssl/private/whim-local.key";
 
-    if (file_exists($vhostFile)) {
-        error_log("[GenUtil] ✅ SSL vhost already exists: $vhostFile");
-        return;
-    }
+    $vhostFile = "/etc/apache2/sites-available/{$name}.dev.local.conf";
+    $tmpFile   = SQL_DIR . "{$name}.vhost.conf";
 
-    $vhostConfig = <<<CONF
-<VirtualHost *:443>
+    $vhost = <<<CONF
+<VirtualHost *:80>
     ServerName {$name}.dev.local
-    DocumentRoot $path
+    DocumentRoot {$path}
 
-    <Directory $path>
+    <Directory {$path}>
         AllowOverride All
         Require all granted
     </Directory>
-
-    SSLEngine on
-    SSLCertificateFile $certFile
-    SSLCertificateKeyFile $keyFile
 </VirtualHost>
 CONF;
 
-    file_put_contents('/tmp/{$name}.vhost.conf', $vhostConfig);
-    exec("sudo cp /tmp/{$name}.vhost.conf $vhostFile");
-    exec("sudo a2ensite {$name}.dev.local-ssl.conf");
+    file_put_contents($tmpFile, $vhost);
+    exec("sudo cp $tmpFile $vhostFile");
+    exec("sudo a2ensite {$name}.dev.local.conf");
     exec("sudo systemctl reload apache2");
-    error_log("[GenUtil] ✅ Created and enabled SSL vhost for {$name}.dev.local");
 }
