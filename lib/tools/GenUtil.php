@@ -140,27 +140,104 @@ function flattenMetadata(array $template): array {
 }
 
 // Apache Utilities
+function ensureLocalSSLCertificate(): void {
+    $certFile = '/etc/ssl/certs/whim-local.pem';
+    $keyFile  = '/etc/ssl/private/whim-local.key';
+
+    if (file_exists($certFile) && file_exists($keyFile)) {
+        error_log("[GenUtil] ✅ SSL cert/key already exist.");
+        return;
+    }
+
+    error_log("[GenUtil] ❗ Missing SSL cert/key. Generating self-signed certificate...");
+
+    $cmd = <<<CMD
+sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+-keyout $keyFile \
+-out $certFile \
+-subj "/C=CA/ST=BC/L=MapleRidge/O=WHIM/OU=Dev/CN=localhost"
+CMD;
+
+    $output = [];
+    exec($cmd, $output, $code);
+
+    if ($code !== 0) {
+        error_log("[GenUtil] ❌ Failed to generate SSL cert. Exit code: $code");
+    } else {
+        chmod($certFile, 0644);
+        chmod($keyFile, 0600);
+        error_log("[GenUtil] ✅ Self-signed SSL cert generated");
+    }
+}
+
 function ensureHttpVHost(Project $project): void {
     $name = $project->getProjectName();
     $path = $project->getPath();
-
     $vhostFile = "/etc/apache2/sites-available/{$name}.dev.local.conf";
-    $tmpFile   = SQL_DIR . "{$name}.vhost.conf";
 
-    $vhost = <<<CONF
+    if (file_exists($vhostFile)) {
+        error_log("[GenUtil] ✅ HTTP vhost already exists: $vhostFile");
+        return;
+    }
+
+    $vhostConfig = <<<CONF
 <VirtualHost *:80>
     ServerName {$name}.dev.local
-    DocumentRoot {$path}
+    DocumentRoot $path
 
-    <Directory {$path}>
+    <Directory $path>
         AllowOverride All
         Require all granted
     </Directory>
+
+    Redirect permanent / https://{$name}.dev.local/
 </VirtualHost>
 CONF;
 
-    file_put_contents($tmpFile, $vhost);
-    exec("sudo cp $tmpFile $vhostFile");
+    file_put_contents("/tmp/{$name}.http.conf", $vhostConfig);
+    exec("sudo cp /tmp/{$name}.http.conf $vhostFile");
     exec("sudo a2ensite {$name}.dev.local.conf");
     exec("sudo systemctl reload apache2");
+    error_log("[GenUtil] ✅ HTTP vhost created and enabled for {$name}.dev.local");
+}
+
+function ensureHttpsVHost(Project $project): void {
+    $name = $project->getProjectName();
+    $path = $project->getPath();
+    $vhostFile = "/etc/apache2/sites-available/{$name}.dev.local-ssl.conf";
+    $certFile = '/etc/ssl/certs/whim-local.pem';
+    $keyFile  = '/etc/ssl/private/whim-local.key';
+
+    if (file_exists($vhostFile)) {
+        error_log("[GenUtil] ✅ HTTPS vhost already exists: $vhostFile");
+        return;
+    }
+
+    $vhostConfig = <<<CONF
+<VirtualHost *:443>
+    ServerName {$name}.dev.local
+    DocumentRoot $path
+
+    <Directory $path>
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    SSLEngine on
+    SSLCertificateFile $certFile
+    SSLCertificateKeyFile $keyFile
+</VirtualHost>
+CONF;
+
+    file_put_contents("/tmp/{$name}.https.conf", $vhostConfig);
+    exec("sudo cp /tmp/{$name}.https.conf $vhostFile");
+    exec("sudo a2ensite {$name}.dev.local-ssl.conf");
+    exec("sudo systemctl reload apache2");
+    error_log("[GenUtil] ✅ HTTPS vhost created and enabled for {$name}.dev.local");
+}
+
+function ensureVHosts(Project $project): void {
+    ensureLocalSSLCertificate();
+    ensureHttpVHost($project);
+    ensureHttpsVHost($project);
 }
