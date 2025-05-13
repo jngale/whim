@@ -269,6 +269,7 @@ abstract class ProjectType {
     
     public function fixPermissions($project): void {
         ensureVHosts($project);
+        patchWpUrls($project);
         $script = SCRIPTS_DIR . 'fixperms.sh';
         execCmd("sudo $script " . escapeshellarg($project->getProjectName()));
     }

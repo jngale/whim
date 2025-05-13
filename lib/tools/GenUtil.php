@@ -241,3 +241,17 @@ function ensureVHosts(Project $project): void {
     ensureHttpVHost($project);
     ensureHttpsVHost($project);
 }
+
+function patchWpUrls(Project $project): void {
+    $domain = $project->get('domain');
+    $url = "https://{$domain}.dev.local";
+    $wpPath = $project->getPath();
+
+    $cmd = "sudo -u www-data wp option update home '$url' --path='$wpPath' && " .
+           "sudo -u www-data wp option update siteurl '$url' --path='$wpPath'";
+
+    $output = shell_exec($cmd);
+    error_log("[FixPermissions] ✅ Patched WP URL to $url");
+    error_log("[FixPermissions] 🔧 wp output: " . trim($output));
+}
+
