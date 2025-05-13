@@ -81,185 +81,185 @@ class WordPressSSHImporter extends Importer {
         $output[] = "[Import] ✅ Site import completed successfully.";
     }
     
-        
-}    public function importDatabase(): void {
-    $project = $this->project;
-    $meta = $project->getMetadata();
-
-    error_log("[DEBUG] SSH Importer Metadata: " . json_encode($meta, JSON_PRETTY_PRINT));
-    error_log("[Import] Starting database import for '{$project->getProjectName()}'");
-
-    if (!$this->validateMetadata($meta)) return;
-    if (!$this->downloadRemoteDump($meta)) return;
-    if (!$this->createOrGrantLocalUser($meta)) return;
-    if (!$this->resetLocalDatabase($meta)) return;
-    if (!$this->importDumpFile($meta)) return;
-
-    $this->finalizeImport($project, $meta);
-}
-
-
-// ─────────────────────────────────────────────
-// 📦 Group: Validation
-// ─────────────────────────────────────────────
-
-private function validateMetadata(array $meta): bool {
-    $required = [
-        'ssh_host', 'ssh_user', 'ssh_key_path',
-        'remote_db_name', 'remote_db_user', 'remote_db_pass',
-        'local_db_name', 'local_db_user', 'local_db_pass'
-    ];
-
-    foreach ($required as $field) {
-        if (empty($meta[$field])) {
-            error_log("[Import] ❌ Missing required metadata field: '$field'");
+    public function importDatabase(): void {
+        $project = $this->project;
+        $meta = $project->getMetadata();
+    
+        error_log("[DEBUG] SSH Importer Metadata: " . json_encode($meta, JSON_PRETTY_PRINT));
+        error_log("[Import] Starting database import for '{$project->getProjectName()}'");
+    
+        if (!$this->validateMetadata($meta)) return;
+        if (!$this->downloadRemoteDump($meta)) return;
+        if (!$this->createOrGrantLocalUser($meta)) return;
+        if (!$this->resetLocalDatabase($meta)) return;
+        if (!$this->importDumpFile($meta)) return;
+    
+        $this->finalizeImport($project, $meta);
+    }
+    
+    
+    // ─────────────────────────────────────────────
+    // 📦 Group: Validation
+    // ─────────────────────────────────────────────
+    
+    private function validateMetadata(array $meta): bool {
+        $required = [
+            'ssh_host', 'ssh_user', 'ssh_key_path',
+            'remote_db_name', 'remote_db_user', 'remote_db_pass',
+            'local_db_name', 'local_db_user', 'local_db_pass'
+        ];
+    
+        foreach ($required as $field) {
+            if (empty($meta[$field])) {
+                error_log("[Import] ❌ Missing required metadata field: '$field'");
+                return false;
+            }
+        }
+    
+        return true;
+    }
+    
+    
+    // ─────────────────────────────────────────────
+    // 📦 Group: SSH Dump
+    // ─────────────────────────────────────────────
+    
+    private function downloadRemoteDump(array $meta): bool {
+        $projectName = $this->project->getProjectName();
+        $dumpFile = SQL_DIR . $projectName . ".remote.sql";
+    
+        $cmd = sprintf(
+            "ssh -o IdentitiesOnly=yes -i %s %s@%s 'mysqldump -u%s -p%s %s' > %s",
+            escapeshellarg($meta['ssh_key_path']),
+            escapeshellarg($meta['ssh_user']),
+            escapeshellarg($meta['ssh_host']),
+            escapeshellarg($meta['remote_db_user']),
+            escapeshellarg($meta['remote_db_pass']),
+            escapeshellarg($meta['remote_db_name']),
+            escapeshellarg($dumpFile)
+        );
+    
+        error_log("[DEBUG] SSH dump command: $cmd");
+        shell_exec($cmd);
+    
+        if (!file_exists($dumpFile) || filesize($dumpFile) < 100) {
+            error_log("[Import] ❌ Dump failed or empty file at $dumpFile");
             return false;
         }
+    
+        error_log("[Import] ✅ Dump written to $dumpFile");
+        return true;
     }
-
-    return true;
-}
-
-
-// ─────────────────────────────────────────────
-// 📦 Group: SSH Dump
-// ─────────────────────────────────────────────
-
-private function downloadRemoteDump(array $meta): bool {
-    $projectName = $this->project->getProjectName();
-    $dumpFile = SQL_DIR . $projectName . ".remote.sql";
-
-    $cmd = sprintf(
-        "ssh -o IdentitiesOnly=yes -i %s %s@%s 'mysqldump -u%s -p%s %s' > %s",
-        escapeshellarg($meta['ssh_key_path']),
-        escapeshellarg($meta['ssh_user']),
-        escapeshellarg($meta['ssh_host']),
-        escapeshellarg($meta['remote_db_user']),
-        escapeshellarg($meta['remote_db_pass']),
-        escapeshellarg($meta['remote_db_name']),
-        escapeshellarg($dumpFile)
-    );
-
-    error_log("[DEBUG] SSH dump command: $cmd");
-    shell_exec($cmd);
-
-    if (!file_exists($dumpFile) || filesize($dumpFile) < 100) {
-        error_log("[Import] ❌ Dump failed or empty file at $dumpFile");
-        return false;
-    }
-
-    error_log("[Import] ✅ Dump written to $dumpFile");
-    return true;
-}
-
-
-// ─────────────────────────────────────────────
-// 📦 Group: MySQL User Setup
-// ─────────────────────────────────────────────
-
-private function createOrGrantLocalUser(array $meta): bool {
-    $sql = sprintf(
-        "CREATE USER IF NOT EXISTS '%s'@'localhost' IDENTIFIED BY '%s';" .
-        "GRANT ALL PRIVILEGES ON `%s`.* TO '%s'@'localhost';" .
-        "FLUSH PRIVILEGES;",
-        $meta['local_db_user'], $meta['local_db_pass'],
-        $meta['local_db_name'], $meta['local_db_user']
-    );
-
-    $mysqli = new \mysqli('localhost', 'root', 'Ripple');
-    if ($mysqli->connect_error) {
-        error_log("[Import] ❌ MySQL root connection failed: " . $mysqli->connect_error);
-        return false;
-    }
-
-    if (!$mysqli->multi_query($sql)) {
-        error_log("[Import] ❌ Failed to create user or grant privileges: " . $mysqli->error);
+    
+    
+    // ─────────────────────────────────────────────
+    // 📦 Group: MySQL User Setup
+    // ─────────────────────────────────────────────
+    
+    private function createOrGrantLocalUser(array $meta): bool {
+        $sql = sprintf(
+            "CREATE USER IF NOT EXISTS '%s'@'localhost' IDENTIFIED BY '%s';" .
+            "GRANT ALL PRIVILEGES ON `%s`.* TO '%s'@'localhost';" .
+            "FLUSH PRIVILEGES;",
+            $meta['local_db_user'], $meta['local_db_pass'],
+            $meta['local_db_name'], $meta['local_db_user']
+        );
+    
+        $mysqli = new \mysqli('localhost', 'root', 'Ripple');
+        if ($mysqli->connect_error) {
+            error_log("[Import] ❌ MySQL root connection failed: " . $mysqli->connect_error);
+            return false;
+        }
+    
+        if (!$mysqli->multi_query($sql)) {
+            error_log("[Import] ❌ Failed to create user or grant privileges: " . $mysqli->error);
+            $mysqli->close();
+            return false;
+        }
+    
+        do {
+            if ($res = $mysqli->store_result()) $res->free();
+        } while ($mysqli->more_results() && $mysqli->next_result());
+    
         $mysqli->close();
-        return false;
+        error_log("[Import] ✅ MySQL user created/granted");
+        return true;
     }
-
-    do {
-        if ($res = $mysqli->store_result()) $res->free();
-    } while ($mysqli->more_results() && $mysqli->next_result());
-
-    $mysqli->close();
-    error_log("[Import] ✅ MySQL user created/granted");
-    return true;
-}
-
-
-// ─────────────────────────────────────────────
-// 📦 Group: Database Drop/Create
-// ─────────────────────────────────────────────
-
-private function resetLocalDatabase(array $meta): bool {
-    $mysqli = new \mysqli('localhost', $meta['local_db_user'], $meta['local_db_pass']);
-    if ($mysqli->connect_error) {
-        error_log("[Import] ❌ MySQL connect failed: " . $mysqli->connect_error);
-        return false;
-    }
-
-    $localDb = $meta['local_db_name'];
-
-    if (!$mysqli->query("DROP DATABASE IF EXISTS `$localDb`")) {
-        error_log("[Import] ❌ Failed to drop database: " . $mysqli->error);
+    
+    
+    // ─────────────────────────────────────────────
+    // 📦 Group: Database Drop/Create
+    // ─────────────────────────────────────────────
+    
+    private function resetLocalDatabase(array $meta): bool {
+        $mysqli = new \mysqli('localhost', $meta['local_db_user'], $meta['local_db_pass']);
+        if ($mysqli->connect_error) {
+            error_log("[Import] ❌ MySQL connect failed: " . $mysqli->connect_error);
+            return false;
+        }
+    
+        $localDb = $meta['local_db_name'];
+    
+        if (!$mysqli->query("DROP DATABASE IF EXISTS `$localDb`")) {
+            error_log("[Import] ❌ Failed to drop database: " . $mysqli->error);
+            $mysqli->close();
+            return false;
+        }
+    
+        if (!$mysqli->query("CREATE DATABASE `$localDb`")) {
+            error_log("[Import] ❌ Failed to create database: " . $mysqli->error);
+            $mysqli->close();
+            return false;
+        }
+    
         $mysqli->close();
-        return false;
+        error_log("[Import] ✅ Reset database '$localDb'");
+        return true;
     }
-
-    if (!$mysqli->query("CREATE DATABASE `$localDb`")) {
-        error_log("[Import] ❌ Failed to create database: " . $mysqli->error);
-        $mysqli->close();
-        return false;
+    
+    
+    // ─────────────────────────────────────────────
+    // 📦 Group: Import SQL Dump
+    // ─────────────────────────────────────────────
+    
+    private function importDumpFile(array $meta): bool {
+        $projectName = $this->project->getProjectName();
+        $dumpFile = SQL_DIR . $projectName . ".remote.sql";
+        $devPath = SQL_DIR . $projectName . ".dev.sql";
+    
+        $cmd = sprintf(
+            "mysql -u%s -p%s %s < %s",
+            escapeshellarg($meta['local_db_user']),
+            escapeshellarg($meta['local_db_pass']),
+            escapeshellarg($meta['local_db_name']),
+            escapeshellarg($dumpFile)
+        );
+    
+        error_log("[DEBUG] Importing SQL file: $cmd");
+        shell_exec($cmd);
+        copy($dumpFile, $devPath);
+        return true;
     }
-
-    $mysqli->close();
-    error_log("[Import] ✅ Reset database '$localDb'");
-    return true;
-}
-
-
-// ─────────────────────────────────────────────
-// 📦 Group: Import SQL Dump
-// ─────────────────────────────────────────────
-
-private function importDumpFile(array $meta): bool {
-    $projectName = $this->project->getProjectName();
-    $dumpFile = SQL_DIR . $projectName . ".remote.sql";
-    $devPath = SQL_DIR . $projectName . ".dev.sql";
-
-    $cmd = sprintf(
-        "mysql -u%s -p%s %s < %s",
-        escapeshellarg($meta['local_db_user']),
-        escapeshellarg($meta['local_db_pass']),
-        escapeshellarg($meta['local_db_name']),
-        escapeshellarg($dumpFile)
-    );
-
-    error_log("[DEBUG] Importing SQL file: $cmd");
-    shell_exec($cmd);
-    copy($dumpFile, $devPath);
-    return true;
-}
-
-
-// ─────────────────────────────────────────────
-// 📦 Group: Final Steps (URLs + Git)
-// ─────────────────────────────────────────────
-
-private function finalizeImport(Project $project, array $meta): void {
-    $projectName = $project->getProjectName();
-    $provider = $meta['hosting_provider'];
-    $domain = $meta['domain'];
-    $wpPath = $project->getPath();
-    $localUrl = "http://{$domain}.dev.local"; // ✅ Use http to avoid SSL hassle
-
-    $cmd = "wp option update home '$localUrl' --path='$wpPath' && " .
-           "wp option update siteurl '$localUrl' --path='$wpPath'";
-    shell_exec($cmd);
-
-    // gitSwitchOrCreateBranchIfMissing($project, $projectName, SQL_DIR);
-    // gitCommit($project, "Imported $projectName from $provider", SQL_DIR);
-
-    error_log("[Import] ✅ WP URLs updated to $localUrl");
-}
+    
+    
+    // ─────────────────────────────────────────────
+    // 📦 Group: Final Steps (URLs + Git)
+    // ─────────────────────────────────────────────
+    
+    private function finalizeImport(Project $project, array $meta): void {
+        $projectName = $project->getProjectName();
+        $provider = $meta['hosting_provider'];
+        $domain = $meta['domain'];
+        $wpPath = $project->getPath();
+        $localUrl = "http://{$domain}.dev.local"; // ✅ Use http to avoid SSL hassle
+    
+        $cmd = "wp option update home '$localUrl' --path='$wpPath' && " .
+               "wp option update siteurl '$localUrl' --path='$wpPath'";
+        shell_exec($cmd);
+    
+        // gitSwitchOrCreateBranchIfMissing($project, $projectName, SQL_DIR);
+        // gitCommit($project, "Imported $projectName from $provider", SQL_DIR);
+    
+        error_log("[Import] ✅ WP URLs updated to $localUrl");
+    }    
+}    
