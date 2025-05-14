@@ -139,46 +139,11 @@ function flattenMetadata(array $template): array {
     return $flat;
 }
 
+
+
 // Apache Utilities
 
-function ensureLocalSSLCertificate(): void {
-    $certFile = '/etc/ssl/certs/whim-local.pem';
-    $keyFile  = '/etc/ssl/private/whim-local.key';
-
-    if (file_exists($certFile) && file_exists($keyFile)) {
-        error_log("[GenUtil] ✅ SSL cert/key already exist.");
-        return;
-    }
-
-    error_log("[GenUtil] ❗ Missing SSL cert/key. Generating self-signed certificate...");
-
-    $cmd = <<<CMD
-sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
--keyout $keyFile \
--out $certFile \
--subj "/C=CA/ST=BC/L=MapleRidge/O=WHIM/OU=Dev/CN=localhost"
-CMD;
-
-    $output = [];
-    exec($cmd, $output, $code);
-
-    if ($code !== 0) {
-        error_log("[GenUtil] ❌ Failed to generate SSL cert. Exit code: $code");
-    } else {
-        chmod($certFile, 0644);
-        chmod($keyFile, 0600);
-        error_log("[GenUtil] ✅ Self-signed SSL cert generated");
-    }
-}
-
-
-function ensureVHosts(Project $project): void {
-    ensureLocalSSLCertificate();
-    ensureVHost($project, 'http');
-    ensureVHost($project, 'https');
-}
-
-function ensureVHost(Project $project, string $protocol = 'http'): void {
+function ensureVHost(Project $project, string $protocol = 'https'): void {
     $name = $project->getProjectName();
     $path = $project->getPath();
 
@@ -236,7 +201,45 @@ CONF;
     error_log("[GenUtil] ✅ {$protocol} vhost created and enabled for {$name}.dev.local");
 }
 
+function ensureLocalSSLCertificate(): void {
+    $certFile = '/etc/ssl/certs/whim-local.pem';
+    $keyFile  = '/etc/ssl/private/whim-local.key';
 
+    if (file_exists($certFile) && file_exists($keyFile)) {
+        error_log("[GenUtil] ✅ SSL cert/key already exist.");
+        return;
+    }
+
+    error_log("[GenUtil] ❗ Missing SSL cert/key. Generating self-signed certificate...");
+
+    $keyFileEscaped  = escapeshellarg($keyFile);
+    $certFileEscaped = escapeshellarg($certFile);
+
+    $cmd = <<<CMD
+sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+-keyout $keyFileEscaped \
+-out $certFileEscaped \
+-subj "/C=CA/ST=BC/L=MapleRidge/O=WHIM/OU=Dev/CN=localhost"
+CMD;
+
+    $output = [];
+    exec($cmd, $output, $code);
+
+    if ($code !== 0) {
+        error_log("[GenUtil] ❌ Failed to generate SSL cert. Exit code: $code");
+        error_log("[GenUtil] ⛔ Output:\n" . implode("\n", $output));
+    } else {
+        chmod($certFile, 0644);
+        chmod($keyFile, 0600);
+        error_log("[GenUtil] ✅ Self-signed SSL cert generated");
+    }
+}
+
+
+function ensureVHosts(Project $project): void {
+    ensureLocalSSLCertificate();
+    ensureVHost($project, 'https');
+}
 
 
 function syncWpSiteUrls(Project $project): void {
