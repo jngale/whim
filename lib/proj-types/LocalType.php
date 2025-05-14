@@ -58,7 +58,7 @@ class LocalType extends ProjectType {
         $output[] = "[Deploy] Copying project files...";
         $this->copyDirectory($sourceDir, $targetDir, $exclude);
     
-        $this->fixPermissions($project);
+        $this->configureProject($project);
         $output[] = "[Deploy] Permissions fixed.";
     
         $project->set('last_deployed', date('Y-m-d H:i:s'));

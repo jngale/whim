@@ -38,7 +38,7 @@ function backupProject(name)   { postToProjects('backupProject', name); }
 function restoreProject(name)  { postToProjects('restoreProject', name); }
 function stageProject(name)       { postToProjects('stageProject', name); }
 function importProject(name)      { postToProjects('importProject', name); }
-function fixPermissions(name)  { postToProjects('fixPermissions', name); }
+function configureProject(name)  { postToProjects('configureProject', name); }
 
 function showSpinnerOverlay(show = true) {
     const overlay = document.getElementById("spinner-overlay");

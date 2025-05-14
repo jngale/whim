@@ -71,11 +71,11 @@ class WordPressSSHImporter extends Importer {
     
         // Permissions
         if (is_dir($localRoot)) {
-            $output[] = "[Import] Running fixPermissions()...";
-            $this->project->getProjectType()->fixPermissions($this->project);
-            $output[] = "[Import] ✅ Permissions fixed.";
+            $output[] = "[Import] Configuring Project ...";
+            $this->project->configureProject($this->project);
+            $output[] = "[Import] ✅ Project Configured.";
         } else {
-            $output[] = "[Import] ⚠️ Skipped permission fix (directory missing)";
+            $output[] = "[Import] ⚠️ Skipped project configuration (directory missing)";
         }
     
         $output[] = "[Import] ✅ Site import completed successfully.";

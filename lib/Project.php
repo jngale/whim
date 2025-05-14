@@ -107,13 +107,13 @@ class Project {
             'restoreProject'    => $type->restoreProject($this),
             'stageProject'      => $type->stageProject($this),
             'importProject'     => $type->importProject($this),
-            'fixPermissions'    => $type->fixPermissions($this),
+            'configureProject'    => $type->configureProject($this),
             default             => throw new \RuntimeException("Unknown action '$action'")
         };
     }
  
-    public function fixPermissions(): void {
-        $this->projectType->fixPermissions($this);
+    public function configureProject(): void {
+        $this->getProjectType()->configureProject($this);
     }
 
     public function deploy(): void {
