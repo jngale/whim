@@ -4,20 +4,7 @@ declare(strict_types=1);
 class Project {
     private array $metadata = [];
 
-    public static function getByName(string $name): ?Project {
-        return ProjectDAO::getByName($name);
-    }
-    
-    public static function getAll(): array {
-        return ProjectDAO::getAll();
-    }
-    
-    public static function getActive(): array {
-        return array_filter(
-            self::getAll(), 
-            fn($p) => $p->isActive()
-        );
-    }
+    // Creation
 
     public static function fromArray(array $data): self {
         $project = new self();
@@ -40,13 +27,30 @@ class Project {
         return $project;
     }
     
-    
-    public function toArray(): array {
-        return $this->metadata;
+    public static function getByName(string $name): ?Project {
+        return ProjectDAO::getByName($name);
     }
+    
+    public static function getAll(): array {
+        return ProjectDAO::getAll();
+    }
+    
+    public static function getActive(): array {
+        return array_filter(
+            self::getAll(), 
+            fn($p) => $p->isActive()
+        );
+    }
+
+
+    // Boolean Tests
 
     public function isActive(): bool {
         return (bool) $this->get("active");
+    }
+    
+    public function isWhim(): bool {
+        return $this->getName() === 'whim';
     }
 
     
@@ -89,10 +93,14 @@ class Project {
     }
 
     
-    // db functionality
+    // db functionality / metadata
 
     public function saveToDatabase(): void {
         ProjectDAO::save($this);
+    }
+
+    public function toArray(): array {
+        return $this->metadata;
     }
 
 
