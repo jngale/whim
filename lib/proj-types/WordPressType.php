@@ -45,11 +45,11 @@ abstract class WordPressType extends ProjectType {
     }
 
 
-    
+
     public function configureProject($project): void {
         parent::configureProject($project); // General setup (vhost + permissions)
     
-        patchWpUrls($project); // Specific to WordPress
+        syncWpSiteUrls($project); // Specific to WordPress
     }
     
     public function deployProject(Project $project): string {

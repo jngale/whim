@@ -242,7 +242,7 @@ function ensureVHosts(Project $project): void {
     ensureHttpsVHost($project);
 }
 
-function patchWpUrls(Project $project): void {
+function syncWpSiteUrls(Project $project): void {
     $domain = $project->get('domain');
     $url = "https://{$domain}.dev.local";
     $wpPath = $project->getPath();
