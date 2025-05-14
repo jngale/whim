@@ -44,16 +44,27 @@ abstract class WordPressType extends ProjectType {
         return "https://{$this->project->domain}.stage.local";
     }
 
-    public function stageSite(): bool {
-        $source = $this->project->getPath();
-        $target = STAGING_ROOT . $this->project->name;
-        return shell_exec("rsync -a --delete $source/ $target/") !== null;
+
+    
+    public function configureProject($project): void {
+        parent::configureProject($project); // General setup (vhost + permissions)
+    
+        patchWpUrls($project); // Specific to WordPress
+    }
+    
+    public function deployProject(Project $project): string {
+        echo "Deploy not yet implemented.\n";
     }
 
     public function importProject(Project $project): void {
         // $this->importSite($project);
         // $this->importDatabase($project);
     }
+
+    public function stageProject(Project $project): string {
+        // No-op
+    }
+
 
     public function importSite(Project $project): void {
         echo "[WordPress] Importing remote files for {$this->name}\n";
@@ -63,13 +74,13 @@ abstract class WordPressType extends ProjectType {
     public function importDatabase(Project $project): void {
         echo "[WordPress] Importing remote files for {$this->name}\n";
         // Future remote file import logic using ssh/scp will go here
+    }    
+
+    public function stageSite(): bool {
+        $source = $this->project->getPath();
+        $target = STAGING_ROOT . $this->project->name;
+        return shell_exec("rsync -a --delete $source/ $target/") !== null;
     }
 
-    public function stageProject(Project $project): string {
-        // No-op
-    }
 
-    public function deployProject(Project $project): string {
-        echo "Deploy not yet implemented.\n";
-    }
 }
