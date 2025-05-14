@@ -119,26 +119,29 @@ class Project {
             default             => throw new \RuntimeException("Unknown action '$action'")
         };
     }
+
+    public function backupProject(): void {
+        $this->projectType->backupProject($this);
+    }
  
     public function configureProject(): void {
         $this->getProjectType()->configureProject($this);
     }
 
-    public function deploy(): void {
+    public function deployProject(): void {
         $this->projectType->deployProject($this);
     }
 
-    public function backup(): void {
-        $this->projectType->backupProject($this);
+    public function importProject(): void {
+        $this->getProjectType()->configureProject($this);
     }
 
-    public function restore(): void {
+    public function restoreProject(): void {
         $this->projectType->restoreProject($this);
     }
+
 
     public function getProjectCard(): string {
         return $this->projectType->getProjectCard();
     }
-        
-
 }
