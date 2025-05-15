@@ -143,62 +143,9 @@ function flattenMetadata(array $template): array {
 
 // Apache Utilities
 
-function ensureVHost(Project $project, string $protocol = 'https'): void {
-    $name = $project->getProjectName();
-    $path = $project->getPath();
-
-    $isHttps = ($protocol === 'https');
-    $port = $isHttps ? '443' : '80';
-    $suffix = $isHttps ? '-ssl' : '';
-    $confName = "{$name}.dev.local{$suffix}.conf";
-    $vhostFile = "/etc/apache2/sites-available/$confName";
-    $tmpFile = "/tmp/{$name}.{$protocol}.conf";
-
-    if (file_exists($vhostFile)) {
-        error_log("[GenUtil] ✅ {$protocol} vhost already exists: $vhostFile");
-        return;
-    }
-
-    if ($isHttps) {
-        $certFile = '/etc/ssl/certs/whim-local.pem';
-        $keyFile  = '/etc/ssl/private/whim-local.key';
-
-        $vhostConfig = <<<CONF
-<VirtualHost *:{$port}>
-    ServerName {$name}.dev.local
-    DocumentRoot $path
-
-    <Directory $path>
-        AllowOverride All
-        Require all granted
-    </Directory>
-
-    SSLEngine on
-    SSLCertificateFile $certFile
-    SSLCertificateKeyFile $keyFile
-</VirtualHost>
-CONF;
-    } else {
-        $vhostConfig = <<<CONF
-<VirtualHost *:{$port}>
-    ServerName {$name}.dev.local
-    DocumentRoot $path
-
-    <Directory $path>
-        AllowOverride All
-        Require all granted
-    </Directory>
-
-    Redirect permanent / https://{$name}.dev.local/
-</VirtualHost>
-CONF;
-    }
-
-    file_put_contents($tmpFile, $vhostConfig);
-    exec("sudo cp $tmpFile $vhostFile");
-    exec("sudo a2ensite $confName");
-    exec("sudo systemctl reload apache2");
-    error_log("[GenUtil] ✅ {$protocol} vhost created and enabled for {$name}.dev.local");
+function ensureVHosts(Project $project): void {
+    ensureLocalSSLCertificate();
+    // ensureVHost($project, 'https');
 }
 
 function ensureLocalSSLCertificate(): void {
@@ -236,10 +183,90 @@ CMD;
 }
 
 
-function ensureVHosts(Project $project): void {
-    ensureLocalSSLCertificate();
-    ensureVHost($project, 'https');
+function ensureVHost(Project $project, string $protocol = 'https'): void {
+    $name = $project->getProjectName();
+    $suffix = ($protocol === 'https') ? '-ssl' : '';
+    $confName = "{$name}.dev.local{$suffix}.conf";
+    $vhostFile = "/etc/apache2/sites-available/$confName";
+    $enabledLink = "/etc/apache2/sites-enabled/$confName";
+
+    if (!file_exists($vhostFile)) {
+        $config = buildVHostConfig($project, $protocol);
+        writeVHostFile($confName, $config);
+        error_log("[GenUtil] ✅ Vhost config written: $vhostFile");
+    }
+
+    if (!file_exists($enabledLink)) {
+        enableApacheSite($confName);
+    } else {
+        error_log("[GenUtil] ✅ Vhost already enabled: $confName");
+    }
 }
+
+
+function buildVHostConfig(Project $project, string $protocol): string {
+    $name = $project->getProjectName();
+    $path = $project->getPath();
+
+    if ($protocol === 'https') {
+        $certFile = '/etc/ssl/certs/whim-local.pem';
+        $keyFile  = '/etc/ssl/private/whim-local.key';
+
+        if (!file_exists($certFile) || !file_exists($keyFile)) {
+            throw new RuntimeException("❌ Missing SSL cert/key for HTTPS vhost: $name");
+        }
+
+        return <<<CONF
+<VirtualHost *:443>
+    ServerName {$name}.dev.local
+    DocumentRoot $path
+
+    <Directory $path>
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    SSLEngine on
+    SSLCertificateFile $certFile
+    SSLCertificateKeyFile $keyFile
+</VirtualHost>
+CONF;
+    }
+
+    return <<<CONF
+<VirtualHost *:80>
+    ServerName {$name}.dev.local
+    DocumentRoot $path
+
+    <Directory $path>
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    Redirect permanent / https://{$name}.dev.local/
+</VirtualHost>
+CONF;
+}
+
+function writeVHostFile(string $confName, string $contents): void {
+    $tmpPath = "/tmp/$confName";
+    $finalPath = "/etc/apache2/sites-available/$confName";
+
+    file_put_contents($tmpPath, $contents);
+    exec("sudo cp $tmpPath $finalPath");
+}
+
+function enableApacheSite(string $confName): void {
+    exec("sudo a2ensite $confName");
+    exec("sudo systemctl restart apache2");
+    error_log("[GenUtil] ✅ Apache site enabled and restarted: $confName");
+}
+
+
+
+
+
+
 
 
 function syncWpSiteUrls(Project $project): void {
@@ -251,7 +278,13 @@ function syncWpSiteUrls(Project $project): void {
            "sudo -u www-data wp option update siteurl '$url' --path='$wpPath'";
 
     $output = shell_exec($cmd);
+    if ($output === null) {
+        error_log("[FixPermissions] 🔧 wp output: (null)");
+    } else {
+        error_log("[FixPermissions] 🔧 wp output: " . trim($output));
+    }
     error_log("[FixPermissions] ✅ Patched WP URL to $url");
-    error_log("[FixPermissions] 🔧 wp output: " . trim($output));
+
+    
 }
 
