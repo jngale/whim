@@ -43,7 +43,7 @@ class ProjectConfigurator {
         switch ($mode) {
             case '443':
                 return $this->get443VHostBlock($name, $path);
-            case '80':+
+            case '80':
                 return $this->get80VHostBlock($name, $path);
             case 'both':
             default:
