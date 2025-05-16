@@ -84,6 +84,9 @@ $loadFiles = [
     METACARD_DIR . 'SSHCard.php',
     METACARD_DIR . 'FTPCard.php',
     METACARD_DIR . 'NewProjectSettingsCard.php',
+
+    // 🟦 Other
+    LIB_DIR . 'ProjectConfigurator.php',
 ];
 
 

@@ -268,12 +268,13 @@ abstract class ProjectType {
     }
     
     public function configureProject($project): void {
-        ensureVHosts($project);
-    
-        $script = SCRIPTS_DIR . 'fixperms.sh';
-        execCmd("sudo $script " . escapeshellarg($project->getProjectName()));
+        $configurator = new ProjectConfigurator($project);
+        $output = $configurator->configure();
+
+        foreach ($output as $line) {
+            error_log("[ConfigureProject] $line");
+        }
     }
-    
 
     public static function isAbstract(string $className): bool {
         try {
