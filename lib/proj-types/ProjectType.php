@@ -67,7 +67,7 @@ abstract class ProjectType {
             $buttons['editing'][] = static::buttonAction('Open in VS Code', "openVSCode('$name')");
         }
 
-        $buttons['editing'][] = static::buttonAction('Fix Permissions', "fixPermissions('$name')");
+        $buttons['editing'][] = static::buttonAction('configure Project', "configureProject('$name')");
         $buttons['deployment'][] = static::buttonAction('Backup', "backupProject('$name')");
         $buttons['deployment'][] = static::buttonAction('Restore', "restoreProject('$name')");
 
@@ -267,7 +267,7 @@ abstract class ProjectType {
         }
     }
     
-    public function fixPermissions($project): void {
+    public function configureProject($project): void {
         $script = SCRIPTS_DIR . 'fixperms.sh';
         execCmd("sudo $script " . escapeshellarg($project->getProjectName()));
     }
