@@ -17,6 +17,9 @@ class ProjectConfigurator {
         $name = $this->project->getDomain() ?? $this->project->getName();
         $path = $this->project->getPath();
 
+        $output[] = "[Configure] Cleaning up old vhosts...";
+        $output = array_merge($output, $this->deleteVHosts());
+
         $output[] = "[Configure] Creating vhost config for: $name";
         $conf = $this->getVHostBlock('443', $name, $path);
 
@@ -81,5 +84,36 @@ class ProjectConfigurator {
                 </Directory>
             </VirtualHost>
         CONF;
+    }
+
+    private function deleteVHosts(): array {
+        $output = [];
+
+        $name = $this->project->getDomain() ?? $this->project->getName();
+        $path = $this->project->getPath();
+
+        $confDir = '/etc/apache2/sites-available';
+        $pattern = "$confDir/*.conf";
+
+        foreach (glob($pattern) as $file) {
+            $contents = file_get_contents($file);
+
+            if (strpos($contents, "ServerName $name") !== false ||
+                strpos($contents, "DocumentRoot $path") !== false) {
+
+                $base = basename($file);
+
+                $output[] = "[VHost Cleanup] Disabling site $base";
+                @execCmd("sudo a2dissite $base");
+
+                $output[] = "[VHost Cleanup] Deleting file $file";
+                @unlink($file);
+            }
+        }
+
+        $output[] = "[VHost Cleanup] Reloading Apache...";
+        execCmd("sudo systemctl reload apache2");
+
+        return $output;
     }
 }
