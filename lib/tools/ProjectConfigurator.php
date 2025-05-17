@@ -14,7 +14,7 @@ class ProjectConfigurator {
     public function configure(): array {
         $output = [];
 
-        $name = $this->project->getDomain() ?? $this->project->getName();
+        $name = $this->project->getDomain() ?? $this->project->getProjectName();
         $path = $this->project->getPath();
 
         $output[] = "[Configure] Cleaning up old vhosts...";
@@ -24,7 +24,7 @@ class ProjectConfigurator {
         $conf = $this->getVHostBlock('443', $name, $path);
 
         $target = "/etc/apache2/sites-available/{$name}.conf";
-        file_put_contents($target, $conf);
+        execCmd("echo " . escapeshellarg($conf) . " | sudo tee {$target} > /dev/null");
         $output[] = "✅ VHost config written to $target";
 
         $output[] = "[Configure] Ensuring SSL certs...";
@@ -37,7 +37,7 @@ class ProjectConfigurator {
         execCmd("sudo systemctl reload apache2");
 
         $output[] = "[Configure] Fixing permissions...";
-        execCmd("sudo " . SCRIPTS_DIR . "fixperms.sh " . escapeshellarg($this->project->getName()));
+        execCmd("sudo " . SCRIPTS_DIR . "fixperms.sh " . escapeshellarg($this->project->getProjectName()));
 
         return $output;
     }
@@ -89,7 +89,7 @@ class ProjectConfigurator {
     private function deleteVHosts(): array {
         $output = [];
 
-        $name = $this->project->getDomain() ?? $this->project->getName();
+        $name = $this->project->getDomain() ?? $this->project->getProjectName();
         $path = $this->project->getPath();
 
         $confDir = '/etc/apache2/sites-available';

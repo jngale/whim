@@ -86,7 +86,7 @@ $loadFiles = [
     METACARD_DIR . 'NewProjectSettingsCard.php',
 
     // 🟦 Other
-    LIB_DIR . 'ProjectConfigurator.php',
+    TOOLS_DIR . 'ProjectConfigurator.php',
 ];
 
 

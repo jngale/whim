@@ -81,6 +81,10 @@ class Project {
         return $this->getDevelopmentDirectory();
     }
 
+    public function getDomain(): string {
+        return $this->get('domain');
+    }
+
     public function getVSCodePath(): string {
         return $this->getProjectType()->getVSCodePath($this);
     }
